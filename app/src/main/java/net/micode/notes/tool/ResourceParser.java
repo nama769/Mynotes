@@ -30,7 +30,7 @@ public class ResourceParser {
     public static final int GREEN            = 3;
     public static final int RED              = 4;
 
-    public static final int BG_DEFAULT_COLOR = YELLOW;
+    public static final int BG_DEFAULT_COLOR = WHITE;
 
     public static final int TEXT_SMALL       = 0;
     public static final int TEXT_MEDIUM      = 1;
@@ -125,6 +125,7 @@ public class ResourceParser {
 
         public static int getFolderBgRes() {
             return R.drawable.list_folder;
+//            return R.drawable.listtest;
         }
     }
 
@@ -138,7 +139,7 @@ public class ResourceParser {
         };
 
         public static int getWidget2xBgResource(int id) {
-            return BG_2X_RESOURCES[id];
+            return BG_2X_RESOURCES[2];
         }
 
         private final static int [] BG_4X_RESOURCES = new int [] {
@@ -150,7 +151,7 @@ public class ResourceParser {
         };
 
         public static int getWidget4xBgResource(int id) {
-            return BG_4X_RESOURCES[id];
+            return BG_4X_RESOURCES[2];
         }
     }
 

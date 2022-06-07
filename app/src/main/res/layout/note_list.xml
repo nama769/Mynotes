@@ -19,7 +19,8 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:background="@drawable/list_background">
+    android:background="#C1F5FFF9"
+    >
 
     <LinearLayout
         android:layout_width="fill_parent"
@@ -50,9 +51,12 @@
 
     <Button
         android:id="@+id/btn_new_note"
-        android:background="@drawable/new_note"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:focusable="false"
-        android:layout_gravity="bottom" />
+        android:layout_width="200px"
+        android:layout_height="200px"
+        android:layout_gravity="bottom|right"
+        android:layout_marginBottom="80px"
+        android:layout_marginRight="80px"
+        android:background="@drawable/add_node"
+        android:focusable="auto"
+        android:visibility="visible" />
 </FrameLayout>

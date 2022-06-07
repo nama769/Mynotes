@@ -71,10 +71,16 @@
     <string name="alert_message_delete_note">确认要删除该条便签吗?</string>
     <string name="alert_message_delete_folder">确认删除文件夹及所包含的便签吗？</string>
     <string name="format_move_notes_to_folder">已将所选 %1$d 条便签移到 %2$s 文件夹</string>
+    <string name="forbidden_move_to_trash">禁止移动到垃圾箱</string>
+    <string name="forbidden_delete_trash">禁止删除垃圾箱</string>
+    <string name="forbidden_add_in_trash">禁止在垃圾箱中新建便签</string>
+    <string name="forbidden_change_trash_name">禁止更改垃圾箱的名字</string>
+    <string name="trash_name">回收站</string>
+    <string name="menu_folder_move_out">恢复文件夹</string>
     <!-- export text -->
     <string name="error_sdcard_unmounted">SD卡被占用，不能操作</string>
     <string name="error_sdcard_export">导出文本时发生错误，请检查SD卡</string>
-    <string name="error_note_not_exist">要查看的便签不存在</string>
+    <string name="error_note_not_exist">禁止在垃圾箱中打开便签</string>
     <string name="error_note_empty_for_clock">不能为空便签设置闹钟提醒</string>
     <string name="error_note_empty_for_send_to_desktop">不能将空便签发送到桌面</string>
     <string name="success_sdcard_export">导出成功</string>

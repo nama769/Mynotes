@@ -22,6 +22,8 @@
 
     <uses-sdk android:minSdkVersion="14" />
 
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -34,6 +36,7 @@
 
     <application
         android:icon="@drawable/icon_app"
+        android:theme="@style/AppTheme.Base"
         android:label="@string/app_name" >
         <activity
             android:exported="true"
@@ -41,9 +44,10 @@
             android:configChanges="keyboardHidden|orientation|screenSize"
             android:label="@string/app_name"
             android:launchMode="singleTop"
-            android:theme="@style/NoteTheme"
+
             android:uiOptions="splitActionBarWhenNarrow"
-            android:windowSoftInputMode="adjustPan" >
+            android:windowSoftInputMode="adjustPan"
+            >
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -56,7 +60,8 @@
             android:name=".ui.NoteEditActivity"
             android:configChanges="keyboardHidden|orientation|screenSize"
             android:launchMode="singleTop"
-            android:theme="@style/NoteTheme" >
+            android:theme="@style/Theme.AppCompat.Light"
+            >
 
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -132,7 +137,7 @@
             android:name=".ui.AlarmAlertActivity"
             android:label="@string/app_name"
             android:launchMode="singleInstance"
-            android:theme="@android:style/Theme.Holo.Wallpaper.NoTitleBar" >
+            android:theme="@android:style/Theme.Black" >
         </activity>
 
         <activity

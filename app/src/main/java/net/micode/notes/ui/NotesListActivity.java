@@ -16,9 +16,11 @@
 
 package net.micode.notes.ui;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.KeyguardManager;
 import android.appwidget.AppWidgetManager;
 import android.content.AsyncQueryHandler;
 import android.content.ContentResolver;
@@ -28,9 +30,13 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.hardware.fingerprint.FingerprintManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -60,6 +66,8 @@ import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import net.micode.notes.R;
 import net.micode.notes.data.Notes;
 import net.micode.notes.data.Notes.NoteColumns;
@@ -67,6 +75,7 @@ import net.micode.notes.gtask.remote.GTaskSyncService;
 import net.micode.notes.model.WorkingNote;
 import net.micode.notes.tool.BackupUtils;
 import net.micode.notes.tool.DataUtils;
+import net.micode.notes.tool.FingerprintDialogFragment;
 import net.micode.notes.tool.ResourceParser;
 import net.micode.notes.ui.NotesListAdapter.AppWidgetAttribute;
 import net.micode.notes.widget.NoteWidgetProvider_2x;
@@ -76,9 +85,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.security.KeyStore;
 import java.util.HashSet;
 
-public class NotesListActivity extends Activity implements OnClickListener, OnItemLongClickListener {
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+
+public class NotesListActivity extends AppCompatActivity implements OnClickListener, OnItemLongClickListener {
     private static final int FOLDER_NOTE_LIST_QUERY_TOKEN = 0;
 
     private static final int FOLDER_LIST_QUERY_TOKEN      = 1;
@@ -88,6 +102,8 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     private static final int MENU_FOLDER_VIEW = 1;
 
     private static final int MENU_FOLDER_CHANGE_NAME = 2;
+
+    private static final int MENU_FOLDER_MOVE_OUT = 3;
 
     private static final String PREFERENCE_ADD_INTRODUCTION = "net.micode.notes.introduction";
 
@@ -135,11 +151,25 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     private final static int REQUEST_CODE_OPEN_NODE = 102;
     private final static int REQUEST_CODE_NEW_NODE  = 103;
 
+    private static final String DEFAULT_KEY_NAME = "default_key";
+    private static final int OPEN_NOTE = 0;
+    private static final int DELETE_NOTE = 1;
+    private static final int MOVE_NOTE = 2;
+    private static final int NONE_ACTION = -1;
+    KeyStore keyStore;
+    private NoteItemData mNoteDataItem;
+    private int mAuthenticatedType;
+    private long mAuthenticated_FOLDER;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.note_list);
         initResources();
+        if (supportFingerprint()) {
+            initKey();
+        }
+
 
         /**
          * Insert an introduction when user firstly use this application
@@ -160,47 +190,56 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     private void setAppInfoFromRawRes() {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
         if (!sp.getBoolean(PREFERENCE_ADD_INTRODUCTION, false)) {
-            StringBuilder sb = new StringBuilder();
-            InputStream in = null;
-            try {
-                 in = getResources().openRawResource(R.raw.introduction);
-                if (in != null) {
-                    InputStreamReader isr = new InputStreamReader(in);
-                    BufferedReader br = new BufferedReader(isr);
-                    char [] buf = new char[1024];
-                    int len = 0;
-                    while ((len = br.read(buf)) > 0) {
-                        sb.append(buf, 0, len);
-                    }
-                } else {
-                    Log.e(TAG, "Read introduction file error");
-                    return;
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                return;
-            } finally {
-                if(in != null) {
-                    try {
-                        in.close();
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                }
+            if(!DataUtils.checkFolderId(mContentResolver,Long.valueOf(Notes.ID_TRASH_FOLER)) && !DataUtils.checkVisibleFolderName(mContentResolver,this.getString(R.string.trash_name))){
+                ContentValues values = new ContentValues();
+                values.put(NoteColumns.SNIPPET, this.getString(R.string.trash_name));
+                values.put(NoteColumns.TYPE, Notes.TYPE_FOLDER);
+//            values.put(NoteColumns.ID, Notes.ID_TRASH_FOLER);
+                mContentResolver.insert(Notes.CONTENT_NOTE_URI, values);
             }
-
-            WorkingNote note = WorkingNote.createEmptyNote(this, Notes.ID_ROOT_FOLDER,
-                    AppWidgetManager.INVALID_APPWIDGET_ID, Notes.TYPE_WIDGET_INVALIDE,
-                    ResourceParser.RED);
-            note.setWorkingText(sb.toString());
-            if (note.saveNote()) {
-                sp.edit().putBoolean(PREFERENCE_ADD_INTRODUCTION, true).commit();
-            } else {
-                Log.e(TAG, "Save introduction note error");
-                return;
-            }
+//            StringBuilder sb = new StringBuilder();
+//            InputStream in = null;
+//            try {
+//                 in = getResources().openRawResource(R.raw.introduction);
+//                if (in != null) {
+//                    InputStreamReader isr = new InputStreamReader(in);
+//                    BufferedReader br = new BufferedReader(isr);
+//                    char [] buf = new char[1024];
+//                    int len = 0;
+//                    while ((len = br.read(buf)) > 0) {
+//                        sb.append(buf, 0, len);
+//                    }
+//                } else {
+//                    Log.e(TAG, "Read introduction file error");
+//                    return;
+//                }
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//                return;
+//            } finally {
+//                if(in != null) {
+//                    try {
+//                        in.close();
+//                    } catch (IOException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+//
+//            WorkingNote note = WorkingNote.createEmptyNote(this, Notes.ID_ROOT_FOLDER,
+//                    AppWidgetManager.INVALID_APPWIDGET_ID, Notes.TYPE_WIDGET_INVALIDE,
+//                    ResourceParser.RED);
+//            note.setWorkingText(sb.toString());
+//            if (note.saveNote()) {
+//                sp.edit().putBoolean(PREFERENCE_ADD_INTRODUCTION, true).commit();
+//            } else {
+//                Log.e(TAG, "Save introduction note error");
+//                return;
+//            }
         }
+        long id = DataUtils.getTrashIdByName(mContentResolver,this.getString(R.string.trash_name));
+        Notes.setID_TRASH_FOLER((int)id);
     }
 
     @Override
@@ -441,6 +480,7 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         }
     }
 
+
     private void showFolderListMenu(Cursor cursor) {
         AlertDialog.Builder builder = new AlertDialog.Builder(NotesListActivity.this);
         builder.setTitle(R.string.menu_title_select_folder);
@@ -448,14 +488,27 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         builder.setAdapter(adapter, new DialogInterface.OnClickListener() {
 
             public void onClick(DialogInterface dialog, int which) {
-                DataUtils.batchMoveToFolder(mContentResolver,
-                        mNotesListAdapter.getSelectedItemIds(), adapter.getItemId(which));
-                Toast.makeText(
-                        NotesListActivity.this,
-                        getString(R.string.format_move_notes_to_folder,
-                                mNotesListAdapter.getSelectedCount(),
-                                adapter.getFolderName(NotesListActivity.this, which)),
-                        Toast.LENGTH_SHORT).show();
+                if(adapter.getItemId(which)==Notes.ID_TRASH_FOLER){
+                    Toast.makeText(
+                            NotesListActivity.this,
+                            R.string.forbidden_move_to_trash,
+                            Toast.LENGTH_SHORT).show();
+                }else{
+                    if(mNotesListAdapter.getHasLocked() && false){
+                        //not ready
+                        initCipher();
+                        mAuthenticatedType = MOVE_NOTE;
+                    }else {
+                        DataUtils.batchMoveToFolder(mContentResolver,
+                                mNotesListAdapter.getSelectedItemIds(), adapter.getItemId(which));
+                        Toast.makeText(
+                                NotesListActivity.this,
+                                getString(R.string.format_move_notes_to_folder,
+                                        mNotesListAdapter.getSelectedCount(),
+                                        adapter.getFolderName(NotesListActivity.this, which)),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }
                 mModeCallBack.finishActionMode();
             }
         });
@@ -469,11 +522,12 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         this.startActivityForResult(intent, REQUEST_CODE_NEW_NODE);
     }
 
-    private void batchDelete() {
+    private void reallyBatchDelete(){
         new AsyncTask<Void, Void, HashSet<AppWidgetAttribute>>() {
             protected HashSet<AppWidgetAttribute> doInBackground(Void... unused) {
                 HashSet<AppWidgetAttribute> widgets = mNotesListAdapter.getSelectedWidget();
-                if (!isSyncMode()) {
+                HashSet<Long> folers = mNotesListAdapter.getSelectedFolderIds();
+                if (folers.contains(new Long( Notes.ID_TRASH_FOLER))) {
                     // if not synced, delete notes directly
                     if (DataUtils.batchDeleteNotes(mContentResolver, mNotesListAdapter
                             .getSelectedItemIds())) {
@@ -506,17 +560,22 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         }.execute();
     }
 
-    private void deleteFolder(long folderId) {
-        if (folderId == Notes.ID_ROOT_FOLDER) {
-            Log.e(TAG, "Wrong folder id, should not happen " + folderId);
-            return;
+    private void batchDelete() {
+        if(ifHaveLocked()){
+            initCipher();
+            mAuthenticatedType = DELETE_NOTE;
+        }else {
+            reallyBatchDelete();
         }
+    }
 
+    private void reallyDeleteFolder(long folderId){
         HashSet<Long> ids = new HashSet<Long>();
+
         ids.add(folderId);
         HashSet<AppWidgetAttribute> widgets = DataUtils.getFolderNoteWidget(mContentResolver,
                 folderId);
-        if (!isSyncMode()) {
+        if (DataUtils.getParentIdbyId(mContentResolver,folderId)==Notes.ID_TRASH_FOLER) {
             // if not synced, delete folder directly
             DataUtils.batchDeleteNotes(mContentResolver, ids);
         } else {
@@ -533,34 +592,129 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         }
     }
 
+
+    private void deleteFolder(long folderId) {
+        if (folderId == Notes.ID_ROOT_FOLDER) {
+            Log.e(TAG, "Wrong folder id, should not happen " + folderId);
+            return;
+        }
+        if(folderId == Notes.ID_TRASH_FOLER){
+            Toast.makeText(
+                    NotesListActivity.this,
+                    R.string.forbidden_delete_trash,
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if(DataUtils.getHasLockedByFolderId(mContentResolver,folderId).contains(Notes.LOCKED)){
+            initCipher();
+            mAuthenticatedType = MOVE_NOTE;
+            mAuthenticated_FOLDER = folderId;
+        }else {
+            reallyDeleteFolder(folderId);
+        }
+    }
+
+    private boolean ifHaveLocked(){
+        return mNotesListAdapter.getHasLocked();
+    }
+
+
     private void openNode(NoteItemData data) {
-        Intent intent = new Intent(this, NoteEditActivity.class);
-        intent.setAction(Intent.ACTION_VIEW);
-        intent.putExtra(Intent.EXTRA_UID, data.getId());
-        this.startActivityForResult(intent, REQUEST_CODE_OPEN_NODE);
+        if(!data.getIsLocked()){
+            Intent intent = new Intent(this, NoteEditActivity.class);
+            intent.setAction(Intent.ACTION_VIEW);
+            intent.putExtra(Intent.EXTRA_UID, data.getId());
+            this.startActivityForResult(intent, REQUEST_CODE_OPEN_NODE);
+        }else{
+            this.openLockedNote();
+            mNoteDataItem = data;
+            mAuthenticatedType = OPEN_NOTE;
+        }
+    }
+
+    private void openLockedNote(){
+        initCipher();
+    }
+
+    public void onAuthenticated() {
+        switch (mAuthenticatedType){
+            case OPEN_NOTE:
+                switch (mNoteDataItem.getType()){
+                    case Notes.TYPE_FOLDER:
+                        mCurrentFolderId = mNoteDataItem.getId();
+                        startAsyncNotesListQuery();
+                        if (mNoteDataItem.getId() == Notes.ID_CALL_RECORD_FOLDER) {
+                            mState = ListEditState.CALL_RECORD_FOLDER;
+                            mAddNewNote.setVisibility(View.GONE);
+                        } else {
+                            mState = ListEditState.SUB_FOLDER;
+                        }
+                        if (mNoteDataItem.getId() == Notes.ID_CALL_RECORD_FOLDER) {
+                            mTitleBar.setText(R.string.call_record_folder_name);
+                        } else {
+                            mTitleBar.setText(mNoteDataItem.getSnippet());
+                        }
+                        mTitleBar.setVisibility(View.VISIBLE);
+                        break;
+                    case Notes.TYPE_NOTE:
+                        Intent intent = new Intent(this, NoteEditActivity.class);
+                        intent.setAction(Intent.ACTION_VIEW);
+                        intent.putExtra(Intent.EXTRA_UID, mNoteDataItem.getId());
+                        this.startActivityForResult(intent, REQUEST_CODE_OPEN_NODE);
+                        break;
+                }
+                break;
+            case DELETE_NOTE:
+                reallyBatchDelete();
+                break;
+            case MOVE_NOTE:
+                reallyDeleteFolder(mAuthenticated_FOLDER);
+                break;
+        }
+        mNoteDataItem = null;
+        mAuthenticated_FOLDER = -1;
+        mAuthenticatedType = NONE_ACTION;
+    }
+
+    public void onStopAuthenticated() {
+        mNoteDataItem = null;
     }
 
     private void openFolder(NoteItemData data) {
-        mCurrentFolderId = data.getId();
-        startAsyncNotesListQuery();
-        if (data.getId() == Notes.ID_CALL_RECORD_FOLDER) {
-            mState = ListEditState.CALL_RECORD_FOLDER;
-            mAddNewNote.setVisibility(View.GONE);
-        } else {
-            mState = ListEditState.SUB_FOLDER;
+        if(!data.getIsLocked()){
+            mCurrentFolderId = data.getId();
+            startAsyncNotesListQuery();
+            if (data.getId() == Notes.ID_CALL_RECORD_FOLDER) {
+                mState = ListEditState.CALL_RECORD_FOLDER;
+                mAddNewNote.setVisibility(View.GONE);
+            } else {
+                mState = ListEditState.SUB_FOLDER;
+            }
+            if (data.getId() == Notes.ID_CALL_RECORD_FOLDER) {
+                mTitleBar.setText(R.string.call_record_folder_name);
+            } else {
+                mTitleBar.setText(data.getSnippet());
+            }
+            mTitleBar.setVisibility(View.VISIBLE);
+        }else{
+            this.openLockedNote();
+            mNoteDataItem = data;
+            mAuthenticatedType = OPEN_NOTE;
         }
-        if (data.getId() == Notes.ID_CALL_RECORD_FOLDER) {
-            mTitleBar.setText(R.string.call_record_folder_name);
-        } else {
-            mTitleBar.setText(data.getSnippet());
-        }
-        mTitleBar.setVisibility(View.VISIBLE);
     }
 
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btn_new_note:
-                createNewNote();
+                if(mCurrentFolderId==Notes.ID_TRASH_FOLER){
+                    Toast.makeText(
+                            NotesListActivity.this,
+                            R.string.forbidden_add_in_trash,
+                            Toast.LENGTH_SHORT).show();
+                }else {
+                    createNewNote();
+                }
                 break;
             default:
                 break;
@@ -586,8 +740,13 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         showSoftInput();
         if (!create) {
             if (mFocusNoteDataItem != null) {
-                etName.setText(mFocusNoteDataItem.getSnippet());
-                builder.setTitle(getString(R.string.menu_folder_change_name));
+                if(mFocusNoteDataItem.getId()==(long)Notes.ID_TRASH_FOLER){
+                    Toast.makeText(this, R.string.forbidden_change_trash_name, Toast.LENGTH_SHORT).show();
+                    return;
+                }else{
+                    etName.setText(mFocusNoteDataItem.getSnippet());
+                    builder.setTitle(getString(R.string.menu_folder_change_name));
+                }
             } else {
                 Log.e(TAG, "The long click data item is null");
                 return;
@@ -710,10 +869,16 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     private final OnCreateContextMenuListener mFolderOnCreateContextMenuListener = new OnCreateContextMenuListener() {
         public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo) {
             if (mFocusNoteDataItem != null) {
-                menu.setHeaderTitle(mFocusNoteDataItem.getSnippet());
-                menu.add(0, MENU_FOLDER_VIEW, 0, R.string.menu_folder_view);
-                menu.add(0, MENU_FOLDER_DELETE, 0, R.string.menu_folder_delete);
-                menu.add(0, MENU_FOLDER_CHANGE_NAME, 0, R.string.menu_folder_change_name);
+                if(mFocusNoteDataItem.getParentId()==Notes.ID_TRASH_FOLER){
+                    menu.setHeaderTitle(mFocusNoteDataItem.getSnippet());
+                    menu.add(0, MENU_FOLDER_MOVE_OUT, 0, R.string.menu_folder_move_out);
+                    menu.add(0, MENU_FOLDER_DELETE, 0, R.string.menu_folder_delete);
+                }else {
+                    menu.setHeaderTitle(mFocusNoteDataItem.getSnippet());
+                    menu.add(0, MENU_FOLDER_VIEW, 0, R.string.menu_folder_view);
+                    menu.add(0, MENU_FOLDER_DELETE, 0, R.string.menu_folder_delete);
+                    menu.add(0, MENU_FOLDER_CHANGE_NAME, 0, R.string.menu_folder_change_name);
+                }
             }
         }
     };
@@ -732,31 +897,56 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
             Log.e(TAG, "The long click data item is null");
             return false;
         }
-        switch (item.getItemId()) {
-            case MENU_FOLDER_VIEW:
-                openFolder(mFocusNoteDataItem);
-                break;
-            case MENU_FOLDER_DELETE:
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle(getString(R.string.alert_title_delete));
-                builder.setIcon(android.R.drawable.ic_dialog_alert);
-                builder.setMessage(getString(R.string.alert_message_delete_folder));
-                builder.setPositiveButton(android.R.string.ok,
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                deleteFolder(mFocusNoteDataItem.getId());
-                            }
-                        });
-                builder.setNegativeButton(android.R.string.cancel, null);
-                builder.show();
-                break;
-            case MENU_FOLDER_CHANGE_NAME:
-                showCreateOrModifyFolderDialog(false);
-                break;
-            default:
-                break;
+        if(mFocusNoteDataItem.getParentId()==Notes.ID_TRASH_FOLER){
+            switch (item.getItemId()) {
+                case MENU_FOLDER_MOVE_OUT:
+                    HashSet<Long> ids = new HashSet<Long>();
+                    ids.add(mFocusNoteDataItem.getId());
+                    DataUtils.batchMoveToFolder(mContentResolver, ids, Notes.ID_ROOT_FOLDER);
+                    break;
+                case MENU_FOLDER_DELETE:
+                    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                    builder.setTitle(getString(R.string.alert_title_delete));
+                    builder.setIcon(android.R.drawable.ic_dialog_alert);
+                    builder.setMessage(getString(R.string.alert_message_delete_folder));
+                    builder.setPositiveButton(android.R.string.ok,
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    deleteFolder(mFocusNoteDataItem.getId());
+                                }
+                            });
+                    builder.setNegativeButton(android.R.string.cancel, null);
+                    builder.show();
+                    break;
+                default:
+                    break;
+            }
+        }else {
+            switch (item.getItemId()) {
+                case MENU_FOLDER_VIEW:
+                    openFolder(mFocusNoteDataItem);
+                    break;
+                case MENU_FOLDER_DELETE:
+                    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                    builder.setTitle(getString(R.string.alert_title_delete));
+                    builder.setIcon(android.R.drawable.ic_dialog_alert);
+                    builder.setMessage(getString(R.string.alert_message_delete_folder));
+                    builder.setPositiveButton(android.R.string.ok,
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int which) {
+                                    deleteFolder(mFocusNoteDataItem.getId());
+                                }
+                            });
+                    builder.setNegativeButton(android.R.string.cancel, null);
+                    builder.show();
+                    break;
+                case MENU_FOLDER_CHANGE_NAME:
+                    showCreateOrModifyFolderDialog(false);
+                    break;
+                default:
+                    break;
+            }
         }
-
         return true;
     }
 
@@ -806,7 +996,7 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
                 break;
             }
             case R.id.menu_new_note: {
-                createNewNote();
+//                createNewNote();
                 break;
             }
             case R.id.menu_search:
@@ -867,7 +1057,7 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     }
 
     private boolean isSyncMode() {
-        return NotesPreferenceActivity.getSyncAccountName(this).trim().length() > 0;
+        return true;
     }
 
     private void startPreferenceActivity() {
@@ -918,7 +1108,7 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
     }
 
     private void startQueryDestinationFolders() {
-        String selection = NoteColumns.TYPE + "=? AND " + NoteColumns.PARENT_ID + "<>? AND " + NoteColumns.ID + "<>?";
+        String selection = NoteColumns.TYPE + "=? AND " + NoteColumns.PARENT_ID + "<>? AND " + NoteColumns.ID + "<>? AND "+ NoteColumns.ID + "<>?";
         selection = (mState == ListEditState.NOTE_LIST) ? selection:
             "(" + selection + ") OR (" + NoteColumns.ID + "=" + Notes.ID_ROOT_FOLDER + ")";
 
@@ -930,7 +1120,8 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
                 new String[] {
                         String.valueOf(Notes.TYPE_FOLDER),
                         String.valueOf(Notes.ID_TRASH_FOLER),
-                        String.valueOf(mCurrentFolderId)
+                        String.valueOf(mCurrentFolderId),
+                        String.valueOf(Notes.ID_TRASH_FOLER)
                 },
                 NoteColumns.MODIFIED_DATE + " DESC");
     }
@@ -951,4 +1142,68 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         }
         return false;
     }
+
+
+
+    public boolean supportFingerprint() {
+        if (Build.VERSION.SDK_INT < 23) {
+            Toast.makeText(this, "您的系统版本过低，不支持指纹功能", Toast.LENGTH_SHORT).show();
+            return false;
+        } else {
+            KeyguardManager keyguardManager = getSystemService(KeyguardManager.class);
+            FingerprintManager fingerprintManager = getSystemService(FingerprintManager.class);
+            if (!fingerprintManager.isHardwareDetected()) {
+                Toast.makeText(this, "您的手机不支持指纹功能", Toast.LENGTH_SHORT).show();
+                return false;
+            } else if (!keyguardManager.isKeyguardSecure()) {
+                Toast.makeText(this, "您还未设置锁屏，请先设置锁屏并添加一个指纹", Toast.LENGTH_SHORT).show();
+                return false;
+            } else if (!fingerprintManager.hasEnrolledFingerprints()) {
+                Toast.makeText(this, "您至少需要在系统设置中添加一个指纹", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @TargetApi(23)
+    private void initKey() {
+        try {
+            keyStore = KeyStore.getInstance("AndroidKeyStore");
+            keyStore.load(null);
+            KeyGenerator keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+            KeyGenParameterSpec.Builder builder = new KeyGenParameterSpec.Builder(DEFAULT_KEY_NAME,
+                    KeyProperties.PURPOSE_ENCRYPT |
+                            KeyProperties.PURPOSE_DECRYPT)
+                    .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
+                    .setUserAuthenticationRequired(true)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7);
+            keyGenerator.init(builder.build());
+            keyGenerator.generateKey();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @TargetApi(23)
+    private void initCipher() {
+        try {
+            SecretKey key = (SecretKey) keyStore.getKey(DEFAULT_KEY_NAME, null);
+            Cipher cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/"
+                    + KeyProperties.BLOCK_MODE_CBC + "/"
+                    + KeyProperties.ENCRYPTION_PADDING_PKCS7);
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+            showFingerPrintDialog(cipher);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void showFingerPrintDialog(Cipher cipher) {
+        FingerprintDialogFragment fragment = new FingerprintDialogFragment();
+        fragment.setCipher(cipher);
+        fragment.show(getFragmentManager(), "fingerprint");
+    }
+
+
 }

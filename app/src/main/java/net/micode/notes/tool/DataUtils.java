@@ -197,6 +197,22 @@ public class DataUtils {
         return exist;
     }
 
+    public static boolean checkFolderId(ContentResolver resolver, long id) {
+        Cursor cursor = resolver.query(Notes.CONTENT_NOTE_URI, null,
+                NoteColumns.TYPE + "=" + Notes.TYPE_FOLDER +
+                        " AND " + NoteColumns.PARENT_ID + "<>" + Notes.ID_TRASH_FOLER +
+                        " AND " + NoteColumns.ID + "=?",
+                new String[] { String.valueOf(id) }, null);
+        boolean exist = false;
+        if(cursor != null) {
+            if(cursor.getCount() > 0) {
+                exist = true;
+            }
+            cursor.close();
+        }
+        return exist;
+    }
+
     public static HashSet<AppWidgetAttribute> getFolderNoteWidget(ContentResolver resolver, long folderId) {
         Cursor c = resolver.query(Notes.CONTENT_NOTE_URI,
                 new String[] { NoteColumns.WIDGET_ID, NoteColumns.WIDGET_TYPE },
@@ -280,6 +296,71 @@ public class DataUtils {
             return snippet;
         }
         throw new IllegalArgumentException("Note is not found with id: " + noteId);
+    }
+
+    public static long getTrashIdByName(ContentResolver resolver, String name) {
+        Cursor cursor = resolver.query(Notes.CONTENT_NOTE_URI,
+                new String [] { NoteColumns.ID },
+                NoteColumns.SNIPPET + "=? AND "+NoteColumns.TYPE + "=" + Notes.TYPE_FOLDER,
+                new String [] { name  },
+                null);
+        if (cursor != null) {
+            long id = 0;
+            if (cursor.moveToFirst()) {
+                id = cursor.getLong(0);
+            }
+            cursor.close();
+            return id;
+        }
+        throw new IllegalArgumentException("getTrashIdByName is not found");
+    }
+
+    public static long getParentIdbyId(ContentResolver resolver,long id){
+        Cursor cursor = resolver.query(Notes.CONTENT_NOTE_URI,
+                new String [] { NoteColumns.PARENT_ID },
+                NoteColumns.ID + "=? AND "+NoteColumns.TYPE + "=" + Notes.TYPE_FOLDER,
+                new String [] { String.valueOf(id)  },
+                null);
+        if (cursor != null) {
+            long pid = 0;
+            if (cursor.moveToFirst()) {
+                pid = cursor.getLong(0);
+            }
+            cursor.close();
+            return pid;
+        }
+        throw new IllegalArgumentException("getParentIdbyId is not found");
+    }
+
+    public static HashSet<String> getHasLockedByFolderId(ContentResolver resolver,long fid){
+        HashSet<String> sset = new HashSet<>();
+        Cursor cursor = resolver.query(Notes.CONTENT_NOTE_URI,
+                new String [] { NoteColumns.LOCKED },
+                NoteColumns.PARENT_ID + "=? AND "+NoteColumns.TYPE + "=" + Notes.TYPE_NOTE,
+                new String [] { String.valueOf(fid)  },
+                null);
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                sset.add(cursor.getString(0));
+            }
+            cursor.close();
+        }
+
+        Cursor cursor2 = resolver.query(Notes.CONTENT_NOTE_URI,
+                new String [] { NoteColumns.ID },
+                NoteColumns.PARENT_ID + "=? AND "+NoteColumns.TYPE + "=" + Notes.TYPE_FOLDER,
+                new String [] { String.valueOf(fid)  },
+                null);
+        if (cursor2 != null) {
+            if(cursor2.moveToFirst()){
+                do{
+                    HashSet<String> tmp = getHasLockedByFolderId(resolver,cursor2.getLong(0));
+                    sset.addAll(tmp);
+                } while (cursor2.moveToNext());
+            }
+            cursor2.close();
+        }
+        return sset;
     }
 
     public static String getFormattedSnippet(String snippet) {

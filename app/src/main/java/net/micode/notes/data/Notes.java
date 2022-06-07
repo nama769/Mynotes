@@ -33,7 +33,10 @@ public class Notes {
     public static final int ID_ROOT_FOLDER = 0;
     public static final int ID_TEMPARAY_FOLDER = -1;
     public static final int ID_CALL_RECORD_FOLDER = -2;
-    public static final int ID_TRASH_FOLER = -3;
+    public static int ID_TRASH_FOLER = 1;//-3;
+
+    public static final String LOCKED           = "locked";
+    public static final String UNLOCKED           = "unlocked";
 
     public static final String INTENT_EXTRA_ALERT_DATE = "net.micode.notes.alert_date";
     public static final String INTENT_EXTRA_BACKGROUND_ID = "net.micode.notes.background_color_id";
@@ -49,6 +52,9 @@ public class Notes {
     public static class DataConstants {
         public static final String NOTE = TextNote.CONTENT_ITEM_TYPE;
         public static final String CALL_NOTE = CallNote.CONTENT_ITEM_TYPE;
+    }
+    public static void setID_TRASH_FOLER(int id){
+        ID_TRASH_FOLER = id;
     }
 
     /**
@@ -165,6 +171,8 @@ public class Notes {
          * <P> Type : INTEGER (long) </P>
          */
         public static final String VERSION = "version";
+
+        public static final String LOCKED = "lock_type";
     }
 
     public interface DataColumns {

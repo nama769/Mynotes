@@ -52,6 +52,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import net.micode.notes.R;
 import net.micode.notes.data.Notes;
 import net.micode.notes.data.Notes.TextNote;
@@ -72,7 +74,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
-public class NoteEditActivity extends Activity implements OnClickListener,
+public class NoteEditActivity extends  AppCompatActivity implements OnClickListener,
         NoteSettingChangedListener, OnTextViewChangeListener {
     private class HeadViewHolder {
         public TextView tvModified;
@@ -82,6 +84,10 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         public TextView tvAlertDate;
 
         public ImageView ibSetBgColor;
+
+        public ImageView ivLocked;
+
+        public ImageView ivUnlocked;
     }
 
     private static final Map<Integer, Integer> sBgSelectorBtnsMap = new HashMap<Integer, Integer>();
@@ -153,6 +159,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         this.setContentView(R.layout.note_edit);
+//        setContentView(R.layout.activity_main);
 
         if (savedInstanceState == null && !initActivityState(getIntent())) {
             finish();
@@ -310,6 +317,14 @@ public class NoteEditActivity extends Activity implements OnClickListener,
             mNoteHeaderHolder.tvAlertDate.setVisibility(View.GONE);
             mNoteHeaderHolder.ivAlertIcon.setVisibility(View.GONE);
         };
+        if(mWorkingNote.getIsLocked()){
+            mNoteHeaderHolder.ivUnlocked.setVisibility(View.GONE);
+            mNoteHeaderHolder.ivLocked.setVisibility(View.VISIBLE);
+        }else{
+            mNoteHeaderHolder.ivUnlocked.setVisibility(View.VISIBLE);
+            mNoteHeaderHolder.ivLocked.setVisibility(View.GONE);
+        }
+
     }
 
     @Override
@@ -371,6 +386,10 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         mNoteHeaderHolder.tvAlertDate = (TextView) findViewById(R.id.tv_alert_date);
         mNoteHeaderHolder.ibSetBgColor = (ImageView) findViewById(R.id.btn_set_bg_color);
         mNoteHeaderHolder.ibSetBgColor.setOnClickListener(this);
+
+        mNoteHeaderHolder.ivLocked = (ImageView) findViewById(R.id.tv_locked);
+        mNoteHeaderHolder.ivUnlocked = (ImageView) findViewById(R.id.tv_unlocked);
+
         mNoteEditor = (EditText) findViewById(R.id.note_edit_view);
         mNoteEditorPanel = findViewById(R.id.sv_note_edit);
         mNoteBgColorSelector = findViewById(R.id.note_bg_color_selector);
@@ -430,7 +449,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         if (id == R.id.btn_set_bg_color) {
             mNoteBgColorSelector.setVisibility(View.VISIBLE);
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
-                    -                    View.VISIBLE);
+                                        View.VISIBLE);
         } else if (sBgSelectorBtnsMap.containsKey(id)) {
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
                     View.GONE);
@@ -450,6 +469,20 @@ public class NoteEditActivity extends Activity implements OnClickListener,
             }
             mFontSizeSelector.setVisibility(View.GONE);
         }
+    }
+
+    public void onChangeLock(View v){
+        int id  = v.getId();
+        switch (id){
+            case R.id.tv_locked:
+                mWorkingNote.setLock(false);
+                break;
+            case R.id.tv_unlocked:
+
+                mWorkingNote.setLock(true);
+                break;
+        }
+        showAlertHeader();
     }
 
     @Override
@@ -480,8 +513,34 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         mHeadViewPanel.setBackgroundResource(mWorkingNote.getTitleBgResId());
     }
 
+//    @Override
+//    public boolean onCreateOptionsMenu(Menu menu){
+//        if (isFinishing()) {
+//            return true;
+//        }
+//        clearSettingState();
+//        menu.clear();
+//        if (mWorkingNote.getFolderId() == Notes.ID_CALL_RECORD_FOLDER) {
+//            getMenuInflater().inflate(R.menu.call_note_edit, menu);
+//        } else {
+//            getMenuInflater().inflate(R.menu.note_edit, menu);
+//        }
+//        if (mWorkingNote.getCheckListMode() == TextNote.MODE_CHECK_LIST) {
+//            menu.findItem(R.id.menu_list_mode).setTitle(R.string.menu_normal_mode);
+//        } else {
+//            menu.findItem(R.id.menu_list_mode).setTitle(R.string.menu_list_mode);
+//        }
+//        if (mWorkingNote.hasClockAlert()) {
+//            menu.findItem(R.id.menu_alert).setVisible(false);
+//        } else {
+//            menu.findItem(R.id.menu_delete_remind).setVisible(false);
+//        }
+//        return true;
+//    }
+
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
+//                    getMenuInflater().inflate(R.menu.call_note_edit, menu);
         if (isFinishing()) {
             return true;
         }
@@ -587,6 +646,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     private void deleteCurrentNote() {
+        saveNote();
         if (mWorkingNote.existInDatabase()) {
             HashSet<Long> ids = new HashSet<Long>();
             long id = mWorkingNote.getNoteId();
@@ -596,9 +656,9 @@ public class NoteEditActivity extends Activity implements OnClickListener,
                 Log.d(TAG, "Wrong note id, should not happen");
             }
             if (!isSyncMode()) {
-                if (!DataUtils.batchDeleteNotes(getContentResolver(), ids)) {
-                    Log.e(TAG, "Delete Note error");
-                }
+//                if (!DataUtils.batchDeleteNotes(getContentResolver(), ids)) {
+//                    Log.e(TAG, "Delete Note error");
+//                }
             } else {
                 if (!DataUtils.batchMoveToFolder(getContentResolver(), ids, Notes.ID_TRASH_FOLER)) {
                     Log.e(TAG, "Move notes to trash folder error, should not happens");
@@ -609,7 +669,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     private boolean isSyncMode() {
-        return NotesPreferenceActivity.getSyncAccountName(this).trim().length() > 0;
+        return true;
     }
 
     public void onClockAlertChanged(long date, boolean set) {
@@ -870,4 +930,6 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     private void showToast(int resId, int duration) {
         Toast.makeText(this, resId, duration).show();
     }
+
+
 }

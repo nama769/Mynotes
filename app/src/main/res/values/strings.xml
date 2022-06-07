@@ -17,6 +17,8 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="edit_message">Enter a message</string>
+    <string name="button_send">Send</string>
     <string name="app_name">Notes</string>
     <string name="app_widget2x2">Notes 2x2</string>
     <string name="app_widget4x4">Notes 4x4</string>
@@ -75,10 +77,16 @@
     <string name="alert_message_delete_notes">Confirm to delete the selected %d notes?</string>
     <string name="alert_message_delete_note">Confirm to delete this note?</string>
     <string name="format_move_notes_to_folder">Have moved selected %1$d notes to %2$s folder</string>
+    <string name="forbidden_move_to_trash">Forbidden move to trash folder</string>
+    <string name="forbidden_delete_trash">Forbidden delete trash folder</string>
+    <string name="forbidden_add_in_trash">Forbidden add in trash folder</string>
+    <string name="forbidden_change_trash_name">Forbidden change trash folder name</string>
+    <string name="menu_folder_move_out">Move out folder</string>
+    <string name="trash_name">TRASH</string>
     <!-- Error information -->
     <string name="error_sdcard_unmounted">SD card busy, not available now</string>
     <string name="error_sdcard_export">Export failed, please check SD card</string>
-    <string name="error_note_not_exist">The note is not exist</string>
+    <string name="error_note_not_exist">Forbidden open note in trash</string>
     <string name="error_note_empty_for_clock">Sorry, can not set clock on empty note</string>
     <string name="error_note_empty_for_send_to_desktop">Sorry, can not send and empty note to home</string>
     <string name="success_sdcard_export">Export successful</string>

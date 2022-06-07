@@ -99,9 +99,30 @@ public class NotesListAdapter extends CursorAdapter {
                 } else {
                     itemSet.add(id);
                 }
+
             }
         }
 
+        return itemSet;
+    }
+
+    public HashSet<Long> getSelectedFolderIds() {
+        HashSet<Long> itemSet = new HashSet<Long>();
+        for (Integer position : mSelectedIndex.keySet()) {
+            if (mSelectedIndex.get(position) == true) {
+                Cursor c = (Cursor) getItem(position);
+                if (c != null) {
+                    NoteItemData item = new NoteItemData(mContext, c);
+                    itemSet.add(item.getFolderId());
+                    /**
+                     * Don't close cursor here, only the adapter could close it
+                     */
+                } else {
+                    Log.e(TAG, "Invalid cursor");
+                    return null;
+                }
+            }
+        }
         return itemSet;
     }
 
@@ -126,6 +147,28 @@ public class NotesListAdapter extends CursorAdapter {
             }
         }
         return itemSet;
+    }
+
+    public boolean getHasLocked(){
+        HashSet<AppWidgetAttribute> itemSet = new HashSet<AppWidgetAttribute>();
+        for (Integer position : mSelectedIndex.keySet()) {
+            if (mSelectedIndex.get(position) == true) {
+                Cursor c = (Cursor) getItem(position);
+                if (c != null) {
+                    NoteItemData item = new NoteItemData(mContext, c);
+                    if(item.getIsLocked()){
+                        return true;
+                    }
+                    /**
+                     * Don't close cursor here, only the adapter could close it
+                     */
+                } else {
+                    Log.e(TAG, "Invalid cursor");
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public int getSelectedCount() {

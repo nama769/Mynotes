@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme.Base" parent="Theme.AppCompat.Light">
+        <item name="colorPrimary">#C1F5FFF9</item>
+    </style>
+
+    <!-- Base application theme. -->
+    <style name="UI.AppTheme" parent="AppTheme.Base">
+    </style>
+</resources>

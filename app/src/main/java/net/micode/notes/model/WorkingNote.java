@@ -60,6 +60,8 @@ public class WorkingNote {
 
     private boolean mIsDeleted;
 
+    private boolean mIsLocked;
+
     private NoteSettingChangedListener mNoteSettingStatusListener;
 
     public static final String[] DATA_PROJECTION = new String[] {
@@ -78,7 +80,8 @@ public class WorkingNote {
             NoteColumns.BG_COLOR_ID,
             NoteColumns.WIDGET_ID,
             NoteColumns.WIDGET_TYPE,
-            NoteColumns.MODIFIED_DATE
+            NoteColumns.MODIFIED_DATE,
+            NoteColumns.LOCKED,
     };
 
     private static final int DATA_ID_COLUMN = 0;
@@ -100,6 +103,11 @@ public class WorkingNote {
     private static final int NOTE_WIDGET_TYPE_COLUMN = 4;
 
     private static final int NOTE_MODIFIED_DATE_COLUMN = 5;
+
+    private static final int NOTE_LOCKED_COLUMN = 6;
+
+    private static final String LOCKED           = "locked";
+    private static final String UNLOCKED           = "unlocked";
 
     // New note construct
     private WorkingNote(Context context, long folderId) {
@@ -137,6 +145,8 @@ public class WorkingNote {
                 mWidgetType = cursor.getInt(NOTE_WIDGET_TYPE_COLUMN);
                 mAlertDate = cursor.getLong(NOTE_ALERTED_DATE_COLUMN);
                 mModifiedDate = cursor.getLong(NOTE_MODIFIED_DATE_COLUMN);
+
+                mIsLocked = !cursor.getString(NOTE_LOCKED_COLUMN).equals(UNLOCKED);
             }
             cursor.close();
         } else {
@@ -257,6 +267,17 @@ public class WorkingNote {
         }
     }
 
+    public void setLock(boolean lock) {
+        if (lock != mIsLocked) {
+            mIsLocked = lock;
+            if(lock){
+                mNote.setNoteValue(NoteColumns.LOCKED, LOCKED);
+            }else {
+                mNote.setNoteValue(NoteColumns.LOCKED, UNLOCKED);
+            }
+        }
+    }
+
     public void setCheckListMode(int mode) {
         if (mMode != mode) {
             if (mNoteSettingStatusListener != null) {
@@ -340,6 +361,14 @@ public class WorkingNote {
 
     public int getWidgetType() {
         return mWidgetType;
+    }
+
+    public boolean getIsLocked(){
+        return mIsLocked;
+    }
+
+    public void setIsLocked(boolean locked){
+        mIsLocked = locked;
     }
 
     public interface NoteSettingChangedListener {

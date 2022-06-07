@@ -28,7 +28,7 @@ import net.micode.notes.data.Notes.NoteColumns;
 
 
 public class NotesDatabaseHelper extends SQLiteOpenHelper {
-    private static final String DB_NAME = "note.db";
+    private static final String DB_NAME = "note4.db";
 
     private static final int DB_VERSION = 4;
 
@@ -59,6 +59,7 @@ public class NotesDatabaseHelper extends SQLiteOpenHelper {
             NoteColumns.SYNC_ID + " INTEGER NOT NULL DEFAULT 0," +
             NoteColumns.LOCAL_MODIFIED + " INTEGER NOT NULL DEFAULT 0," +
             NoteColumns.ORIGIN_PARENT_ID + " INTEGER NOT NULL DEFAULT 0," +
+            NoteColumns.LOCKED + " TEXT NOT NULL DEFAULT '"+Notes.UNLOCKED+"'," +
             NoteColumns.GTASK_ID + " TEXT NOT NULL DEFAULT ''," +
             NoteColumns.VERSION + " INTEGER NOT NULL DEFAULT 0" +
         ")";

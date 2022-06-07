@@ -26,10 +26,25 @@
         android:layout_height="fill_parent"
         android:orientation="vertical">
 
+
         <LinearLayout
             android:id="@+id/note_title"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content">
+            <ImageButton
+                android:id="@+id/tv_locked"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:onClick="onChangeLock"
+                android:background="@drawable/lock" />
+            <ImageButton
+                android:id="@+id/tv_unlocked"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:onClick="onChangeLock"
+                android:background="@drawable/unlock" />
 
             <TextView
                 android:id="@+id/tv_modified_date"
@@ -61,6 +76,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:background="@drawable/bg_btn_set_color" />
+
         </LinearLayout>
 
         <LinearLayout

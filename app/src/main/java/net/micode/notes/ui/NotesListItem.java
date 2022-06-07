@@ -101,6 +101,11 @@ public class NotesListItem extends LinearLayout {
 
     private void setBackground(NoteItemData data) {
         int id = data.getBgColorId();
+//        setBackgroundResource(R.color.user_query_highlight);
+//        setBackgroundColor(0xFF888888);
+//        setX(500);
+//        setWeightSum((float)1);
+//        setw
         if (data.getType() == Notes.TYPE_NOTE) {
             if (data.isSingle() || data.isOneFollowingFolder()) {
                 setBackgroundResource(NoteItemBgResources.getNoteBgSingleRes(id));

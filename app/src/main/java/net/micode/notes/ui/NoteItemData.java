@@ -40,6 +40,7 @@ public class NoteItemData {
         NoteColumns.TYPE,
         NoteColumns.WIDGET_ID,
         NoteColumns.WIDGET_TYPE,
+        NoteColumns.LOCKED
     };
 
     private static final int ID_COLUMN                    = 0;
@@ -54,6 +55,10 @@ public class NoteItemData {
     private static final int TYPE_COLUMN                  = 9;
     private static final int WIDGET_ID_COLUMN             = 10;
     private static final int WIDGET_TYPE_COLUMN           = 11;
+    private static final int LOCKED_COLUMN           = 12;
+
+    private static final String LOCKED           = "locked";
+    private static final String UNLOCKED           = "unlocked";
 
     private long mId;
     private long mAlertDate;
@@ -76,6 +81,8 @@ public class NoteItemData {
     private boolean mIsOneNoteFollowingFolder;
     private boolean mIsMultiNotesFollowingFolder;
 
+    private boolean mIsLocked;
+
     public NoteItemData(Context context, Cursor cursor) {
         mId = cursor.getLong(ID_COLUMN);
         mAlertDate = cursor.getLong(ALERTED_DATE_COLUMN);
@@ -91,6 +98,8 @@ public class NoteItemData {
         mType = cursor.getInt(TYPE_COLUMN);
         mWidgetId = cursor.getInt(WIDGET_ID_COLUMN);
         mWidgetType = cursor.getInt(WIDGET_TYPE_COLUMN);
+
+        mIsLocked = !cursor.getString(LOCKED_COLUMN).equals(UNLOCKED);
 
         mPhoneNumber = "";
         if (mParentId == Notes.ID_CALL_RECORD_FOLDER) {
@@ -220,5 +229,12 @@ public class NoteItemData {
 
     public static int getNoteType(Cursor cursor) {
         return cursor.getInt(TYPE_COLUMN);
+    }
+
+    public boolean getIsLocked(){
+        return mIsLocked;
+    }
+    public void setIsLocked(boolean islocked){
+        mIsLocked = islocked;
     }
 }
