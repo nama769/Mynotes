@@ -341,7 +341,9 @@ public class DataUtils {
                 null);
         if (cursor != null) {
             if (cursor.moveToFirst()) {
-                sset.add(cursor.getString(0));
+                do{
+                    sset.add(cursor.getString(0));
+                } while (cursor.moveToNext());
             }
             cursor.close();
         }
